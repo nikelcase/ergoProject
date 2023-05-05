@@ -18,19 +18,48 @@ func main() {
 	flag.Parse()
 
 	fmt.Println("Start node " + appname + "@127.0.0.1")
-	myNode, err := ergo.StartNode(appname+"@127.0.0.1", appname, node.Options{})
+
+	apps := []gen.ApplicationBehavior{
+		createErgoApp(),
+	}
+	opts := node.Options{
+		Applications: apps,
+	}
+	demoNode, err := ergo.StartNode(appname+"@127.0.0.1", appname, opts)
 	if err != nil {
 		panic(err)
 	}
+	demoNode.Wait()
 
-	appSup := CreateAppSup()
+}
 
-	sup, err := myNode.Spawn(appname+"AppSup", gen.ProcessOptions{}, appSup)
-	if err != nil {
-		panic(err)
-	}
-	fmt.Println("Started supervisor process", sup.Self())
-	sup.Wait()
+//-----------------------------------------------------------------------------app
+
+func createErgoApp() gen.ApplicationBehavior {
+	return &ergoApp{}
+}
+
+type ergoApp struct {
+	gen.Application
+}
+
+func (a *ergoApp) Load(args ...etf.Term) (gen.ApplicationSpec, error) {
+	return gen.ApplicationSpec{
+		Name:        appname,
+		Description: "Demo Applicatoin",
+		Version:     "v0.1.0",
+		Children: []gen.ApplicationChildSpec{
+			gen.ApplicationChildSpec{
+				Child: CreateAppSup(),
+				Name:  appname + "AppSup",
+			},
+		},
+		StartType: gen.ApplicationStartTransient,
+	}, nil
+}
+
+func (a *ergoApp) Start(process gen.Process, args ...etf.Term) {
+	fmt.Printf("Application started with Pid %s!\n", process.Self())
 }
 
 //-----------------------------------------------------------------------------appSup
